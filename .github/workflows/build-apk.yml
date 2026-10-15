@@ -87,26 +87,43 @@ jobs:
           p = Path("app/build.gradle.kts")
           s = p.read_text()
 
-          # Match Java 8 compatibility declarations in Kotlin DSL.
+          # Ensure Java and Kotlin both target JVM 17.
+          if "compileOptions" not in s:
+              s = re.sub(
+                  r'(android\s*\{)',
+                  r'''\1
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+          ''',
+                  s,
+                  count=1
+              )
+
+          if "kotlinOptions" not in s:
+              s = re.sub(
+                  r'(android\s*\{)',
+                  r'''\1
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          ''',
+                  s,
+                  count=1
+              )
+
           s = s.replace(
               "JavaVersion.VERSION_1_8",
               "JavaVersion.VERSION_17"
           )
-          s = s.replace(
-              'jvmTarget = "1.8"',
-              'jvmTarget = "17"'
-          )
-          s = s.replace(
-              'jvmTarget = "8"',
-              'jvmTarget = "17"'
-          )
+          s = s.replace('jvmTarget = "1.8"', 'jvmTarget = "17"')
+          s = s.replace('jvmTarget = "8"', 'jvmTarget = "17"')
 
           p.write_text(s)
-          print("Updated Java 8 compatibility declarations where present.")
-          print("--- app/build.gradle.kts ---")
           print(s)
           PY
-
+          
       - name: Build debug APK
         working-directory: source/SLGAN
         run: gradle --no-daemon assembleDebug
