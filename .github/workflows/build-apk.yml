@@ -158,6 +158,40 @@ jobs:
         working-directory: source/SLGAN
         run: gradle --no-daemon assembleDebug
 
+      
+      - name: Stabilize screen layout
+        working-directory: source/SLGAN
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/src/main/java/in/slgan/app/MainActivity.kt")
+          s = p.read_text()
+
+          start = '                    if (selected != null) {'
+          end = '                    if (status.isNotBlank()) {'
+
+          if start not in s or end not in s:
+              raise SystemExit("Screen layout markers not found")
+
+          s = s.replace(
+              start,
+              '                    Box(Modifier.weight(1f).fillMaxWidth()) {\n' + start,
+              1
+          )
+          s = s.replace(end, '                    }\n' + end, 1)
+          s = s.replace(
+              'LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp)',
+              'LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)',
+              1
+          )
+
+          p.write_text(s)
+          print("Screen layout patch applied")
+          PY
+
+
       - name: Verify APK
         shell: bash
         run: |
