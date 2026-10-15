@@ -40,19 +40,17 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" \
             -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
           if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: Android SDK manager was not found."
+            echo "Android SDK manager not found"
             exit 1
           fi
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-          echo "Found SDK manager: $SDKMANAGER"
+          echo "Found: $SDKMANAGER"
 
       - name: Accept Android SDK licenses
         shell: bash
-        run: |
-          yes | "$SDKMANAGER" --licenses || true
-          "$SDKMANAGER" --licenses
+        run: yes | "$SDKMANAGER" --licenses
 
-      - name: Install required Android SDK packages
+      - name: Install Android SDK packages
         shell: bash
         run: |
           "$SDKMANAGER" \
@@ -60,7 +58,7 @@ jobs:
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-      - name: Verify uploaded source ZIP
+      - name: Verify source ZIP
         shell: bash
         run: |
           test -f SLGAN-Android-Source.zip
@@ -74,6 +72,37 @@ jobs:
           test -f source/SLGAN/settings.gradle.kts
           test -f source/SLGAN/app/build.gradle.kts
           test -f source/SLGAN/app/src/main/AndroidManifest.xml
+
+      - name: Fix Java and Kotlin JVM targets
+        working-directory: source/SLGAN
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("app/build.gradle.kts")
+          s = p.read_text()
+
+          # Match Java 8 compatibility declarations in Kotlin DSL.
+          s = s.replace(
+              "JavaVersion.VERSION_1_8",
+              "JavaVersion.VERSION_17"
+          )
+          s = s.replace(
+              'jvmTarget = "1.8"',
+              'jvmTarget = "17"'
+          )
+          s = s.replace(
+              'jvmTarget = "8"',
+              'jvmTarget = "17"'
+          )
+
+          p.write_text(s)
+          print("Updated Java 8 compatibility declarations where present.")
+          print("--- app/build.gradle.kts ---")
+          print(s)
+          PY
 
       - name: Build debug APK
         working-directory: source/SLGAN
