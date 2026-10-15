@@ -134,6 +134,31 @@ jobs:
           p.write_text(s)
           PY
 
+      
+      - name: Fix ProductList scope
+        working-directory: source/SLGAN
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/src/main/java/in/slgan/app/MainActivity.kt")
+          s = p.read_text()
+
+          old_signature = "fun ColumnScope.ProductList("
+          new_signature = "fun ProductList("
+          old_list = "LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp)"
+          new_list = "LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)"
+
+          if old_signature not in s or old_list not in s:
+              raise SystemExit("Expected ProductList code not found; no changes made")
+
+          s = s.replace(old_signature, new_signature, 1)
+          s = s.replace(old_list, new_list, 1)
+          p.write_text(s)
+          print("ProductList scope fix applied")
+          PY
+
       - name: Build debug APK
         working-directory: source/SLGAN
         run: gradle --no-daemon assembleDebug
