@@ -44,7 +44,6 @@ jobs:
             exit 1
           fi
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-          echo "Found: $SDKMANAGER"
 
       - name: Accept Android SDK licenses
         shell: bash
@@ -64,21 +63,19 @@ jobs:
       - name: Verify source ZIP
         shell: bash
         run: |
-          test -f SLGAN-Android-Source-Fixed.zip
-          unzip -q SLGAN-Android-Source-Fixed.zip -d source
+          test -f SLGAN-Android-Source-Layout-Fix.zip
+          unzip -t SLGAN-Android-Source-Layout-Fix.zip
 
-      
       - name: Extract Android project
         shell: bash
         run: |
           mkdir -p source
-          unzip -oq SLGAN-Android-Source-Fixed.zip -d source
+          unzip -oq SLGAN-Android-Source-Layout-Fix.zip -d source
           test -f source/SLGAN/settings.gradle.kts
           test -f source/SLGAN/app/build.gradle.kts
           test -f source/SLGAN/app/src/main/AndroidManifest.xml
+          test -f source/SLGAN/app/src/main/java/in/slgan/app/MainActivity.kt
 
-
-      
       - name: Fix Kotlin package name
         working-directory: source/SLGAN
         shell: bash
@@ -87,9 +84,7 @@ jobs:
           from pathlib import Path
 
           for p in Path(".").rglob("*"):
-              if not p.is_file():
-                  continue
-              if p.suffix.lower() not in {
+              if not p.is_file() or p.suffix.lower() not in {
                   ".kt", ".kts", ".xml", ".gradle", ".properties"
               }:
                   continue
@@ -97,16 +92,13 @@ jobs:
                   old = p.read_text()
               except UnicodeDecodeError:
                   continue
-
-              new = old.replace(
-                  "in.slgan.app", "com.slgan.app"
-              )
+              new = old.replace("in.slgan.app", "com.slgan.app")
               if new != old:
                   p.write_text(new)
                   print("Fixed:", p)
           PY
 
-      - name: Fix Java and Kotlin JVM targets
+      - name: Configure JVM 17
         working-directory: source/SLGAN
         shell: bash
         run: |
@@ -117,7 +109,6 @@ jobs:
           p = Path("app/build.gradle.kts")
           s = p.read_text()
 
-          # Ensure Java and Kotlin both target JVM 17.
           if "compileOptions" not in s:
               s = re.sub(
                   r'(android\s*\{)',
@@ -126,10 +117,7 @@ jobs:
                   sourceCompatibility = JavaVersion.VERSION_17
                   targetCompatibility = JavaVersion.VERSION_17
               }
-          ''',
-                  s,
-                  count=1
-              )
+          ''', s, count=1)
 
           if "kotlinOptions" not in s:
               s = re.sub(
@@ -138,59 +126,17 @@ jobs:
               kotlinOptions {
                   jvmTarget = "17"
               }
-          ''',
-                  s,
-                  count=1
-              )
+          ''', s, count=1)
 
-          s = s.replace(
-              "JavaVersion.VERSION_1_8",
-              "JavaVersion.VERSION_17"
-          )
+          s = s.replace("JavaVersion.VERSION_1_8", "JavaVersion.VERSION_17")
           s = s.replace('jvmTarget = "1.8"', 'jvmTarget = "17"')
           s = s.replace('jvmTarget = "8"', 'jvmTarget = "17"')
-
           p.write_text(s)
-          print(s)
           PY
-          
+
       - name: Build debug APK
         working-directory: source/SLGAN
         run: gradle --no-daemon assembleDebug
-
-      
-      - name: Stabilize screen layout
-        working-directory: source/SLGAN
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path("app/src/main/java/in/slgan/app/MainActivity.kt")
-          s = p.read_text()
-
-          start = '                    if (selected != null) {'
-          end = '                    if (status.isNotBlank()) {'
-
-          if start not in s or end not in s:
-              raise SystemExit("Screen layout markers not found")
-
-          s = s.replace(
-              start,
-              '                    Box(Modifier.weight(1f).fillMaxWidth()) {\n' + start,
-              1
-          )
-          s = s.replace(end, '                    }\n' + end, 1)
-          s = s.replace(
-              'LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp)',
-              'LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)',
-              1
-          )
-
-          p.write_text(s)
-          print("Screen layout patch applied")
-          PY
-
 
       - name: Verify APK
         shell: bash
