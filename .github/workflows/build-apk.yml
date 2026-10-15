@@ -67,14 +67,16 @@ jobs:
           test -f SLGAN-Android-Source-Fixed.zip
           unzip -q SLGAN-Android-Source-Fixed.zip -d source
 
+      
       - name: Extract Android project
         shell: bash
         run: |
           mkdir -p source
-          unzip -q SLGAN-Android-Source.zip -d source
+          unzip -oq SLGAN-Android-Source-Fixed.zip -d source
           test -f source/SLGAN/settings.gradle.kts
           test -f source/SLGAN/app/build.gradle.kts
           test -f source/SLGAN/app/src/main/AndroidManifest.xml
+
 
       
       - name: Fix Kotlin package name
