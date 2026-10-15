@@ -76,6 +76,34 @@ jobs:
           test -f source/SLGAN/app/build.gradle.kts
           test -f source/SLGAN/app/src/main/AndroidManifest.xml
 
+      
+      - name: Fix Kotlin package name
+        working-directory: source/SLGAN
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for p in Path(".").rglob("*"):
+              if not p.is_file():
+                  continue
+              if p.suffix.lower() not in {
+                  ".kt", ".kts", ".xml", ".gradle", ".properties"
+              }:
+                  continue
+              try:
+                  old = p.read_text()
+              except UnicodeDecodeError:
+                  continue
+
+              new = old.replace(
+                  "in.slgan.app", "com.slgan.app"
+              )
+              if new != old:
+                  p.write_text(new)
+                  print("Fixed:", p)
+          PY
+
       - name: Fix Java and Kotlin JVM targets
         working-directory: source/SLGAN
         shell: bash
